@@ -65,7 +65,7 @@ def _is_divider(line: str) -> bool:
         return True
 
     first_token = line.split()[0]
-    if first_token == "-DOCSTART-" or line[0].startswith('# id'):  # pylint: disable=simplifiable-if-statement
+    if first_token == "-DOCSTART-" or line.startswith('# id'):  # pylint: disable=simplifiable-if-statement
         return True
 
     return False

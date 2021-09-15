@@ -55,3 +55,6 @@ python -m ner_baseline.evaluate --test test.txt --out_dir . --gpus 1 --encoder_m
 ```
 $ pip install -r requirements.txt
 ```
+
+# License 
+The code under this repository is licensed under the [Apache 2.0 License](https://github.com/amzn/multiconer-baseline/blob/main/LICENSE).

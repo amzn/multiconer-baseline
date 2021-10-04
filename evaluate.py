@@ -9,7 +9,7 @@ if __name__ == '__main__':
     sg = parse_args()
 
     # load the dataset first
-    test_data = get_reader(file_path=sg.test, target_vocab=get_tagset(sg.iob_tagging), max_instances=sg.max_instances, max_length=sg.max_length)
+    test_data = get_reader(file_path=sg.test, target_vocab=get_tagset(sg.iob_tagging), max_instances=sg.max_instances, max_length=sg.max_length, encoder_model=sg.encoder_model)
 
     model = load_model(sg.model, tag_to_id=get_tagset(sg.iob_tagging))
     trainer = get_trainer(is_test=True)

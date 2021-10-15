@@ -18,7 +18,7 @@ class CoNLLReader(Dataset):
         self.tokenizer = AutoTokenizer.from_pretrained(pretrained_dir + encoder_model)
 
         self.pad_token = self.tokenizer.special_tokens_map['pad_token']
-        self.pad_token_id = self.tokenizer.get_vocab()['<pad>']
+        self.pad_token_id = self.tokenizer.get_vocab()[self.pad_token]
         self.sep_token = self.tokenizer.special_tokens_map['sep_token']
 
         self.label_to_id = {} if target_vocab is None else target_vocab

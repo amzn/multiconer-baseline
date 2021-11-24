@@ -41,7 +41,7 @@ class CoNLLReader(Dataset):
         logger.info('Reading file {}'.format(dataset_name))
         instance_idx = 0
 
-        for fields in get_ner_reader(data=data):
+        for fields, metadata in get_ner_reader(data=data):
             if self._max_instances != -1 and instance_idx > self._max_instances:
                 break
             sentence_str, tokens_sub_rep, token_masks_rep, coded_ner_, gold_spans_ = self.parse_line_for_ner(fields=fields)

@@ -7,9 +7,14 @@ def get_ner_reader(data):
     for is_divider, lines in itertools.groupby(fin, _is_divider):
         if is_divider:
             continue
-        fields = [line.strip().split() for line in lines]
+        lines = [line.strip().replace('\u200d', '').replace('\u200c', '') for line in lines]
+
+        metadata = lines[0].strip() if lines[0].strip().startswith('# id') else None
+        fields = [line.split() for line in lines if not line.startswith('# id')]
         fields = [list(field) for field in zip(*fields)]
-        yield fields
+
+
+        yield fields, metadata
 
 
 def _assign_ner_tags(ner_tag, rep_):
@@ -65,7 +70,7 @@ def _is_divider(line: str) -> bool:
         return True
 
     first_token = line.split()[0]
-    if first_token == "-DOCSTART-" or line.startswith('# id'):  # pylint: disable=simplifiable-if-statement
+    if first_token == "-DOCSTART-":# or line.startswith('# id'):  # pylint: disable=simplifiable-if-statement
         return True
 
     return False
@@ -78,13 +83,13 @@ def get_tags(tokens, tags, tokenizer=None, start_token_pattern='▁'):
     tokens = tokenizer.convert_ids_to_tokens(tokens)
     for token, tag in zip(tokens, tags):
         if token == tokenizer.pad_token:
-            index += 1
+            # index += 1
             continue
 
         if index == 0:
             tag_results.append(tag)
 
-        elif token.startswith(start_token_pattern):
+        elif token.startswith(start_token_pattern) and token != '▁́':
             tag_results.append(tag)
 
             if tokenizer is not None:

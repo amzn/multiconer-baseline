@@ -69,3 +69,31 @@ def _is_divider(line: str) -> bool:
         return True
 
     return False
+
+
+def get_tags(tokens, tags, tokenizer=None, start_token_pattern='▁'):
+    token_results, tag_results = [], []
+    index = 0
+    token_word = []
+    tokens = tokenizer.convert_ids_to_tokens(tokens)
+    for token, tag in zip(tokens, tags):
+        if token == tokenizer.pad_token:
+            index += 1
+            continue
+
+        if index == 0:
+            tag_results.append(tag)
+
+        elif token.startswith(start_token_pattern):
+            tag_results.append(tag)
+
+            if tokenizer is not None:
+                token_results.append(''.join(token_word).replace(start_token_pattern, ''))
+            token_word.clear()
+
+        token_word.append(token)
+
+        index += 1
+    token_results.append(''.join(token_word).replace(start_token_pattern, ''))
+
+    return token_results, tag_results

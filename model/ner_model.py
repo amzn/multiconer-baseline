@@ -14,7 +14,7 @@ from transformers import get_linear_schedule_with_warmup, AutoModel
 
 from log import logger
 from utils.metric import SpanF1
-from utils.reader_utils import extract_spans
+from utils.reader_utils import extract_spans, get_tags
 
 
 class NERBaseAnnotator(pl.LightningModule):
@@ -158,19 +158,33 @@ class NERBaseAnnotator(pl.LightningModule):
         token_scores = self.feedforward(embedded_text_input)
 
         # compute the log-likelihood loss and compute the best NER annotation sequence
-        output = self._compute_token_tags(token_scores=token_scores, tags=tags, token_mask=token_mask, metadata=metadata, batch_size=batch_size)
+        output = self._compute_token_tags(token_scores=token_scores, tags=tags, token_mask=token_mask, metadata=metadata, batch_size=batch_size, mode=mode)
         return output
 
-    def _compute_token_tags(self, token_scores, tags, token_mask, metadata, batch_size):
+    def _compute_token_tags(self, token_scores, tags, token_mask, metadata, batch_size, mode=''):
         # compute the log-likelihood loss and compute the best NER annotation sequence
         loss = -self.crf_layer(token_scores, tags, token_mask) / float(batch_size)
         best_path = self.crf_layer.viterbi_tags(token_scores, token_mask)
 
-        pred_results = []
+        pred_results, pred_tags = [], []
         for i in range(batch_size):
             tag_seq, _ = best_path[i]
+            pred_tags.append([self.id_to_tag[x] for x in tag_seq])
             pred_results.append(extract_spans([self.id_to_tag[x] for x in tag_seq if x in self.id_to_tag]))
 
         self.span_f1(pred_results, metadata)
         output = {"loss": loss, "results": self.span_f1.get_metric()}
+
+        if mode == 'predict':
+            output['token_tags'] = pred_tags
         return output
+
+    def predict_tags(self, batch, tokenizer=None):
+        tokens, tags, token_mask, metadata = batch
+        pred_tags = self.perform_forward_step(batch, mode='predict')['token_tags']
+        token_results, tag_results = [], []
+        for i in range(tokens.size(0)):
+            instance_token_results, instance_tag_results = get_tags(tokens[i], pred_tags[i], tokenizer=tokenizer)
+            token_results.append(instance_token_results)
+            tag_results.append(instance_tag_results)
+        return token_results, tag_results

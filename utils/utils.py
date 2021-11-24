@@ -84,10 +84,13 @@ def create_model(train_data, dev_data, tag_to_id, batch_size=64, dropout_rate=0.
 
 
 def load_model(model_file, tag_to_id=None, stage='test'):
+    if ~os.path.isfile(model_file):
+        model_file = get_models_for_evaluation(model_file)
+
     hparams_file = model_file[:model_file.rindex('checkpoints/')] + '/hparams.yaml'
     model = NERBaseAnnotator.load_from_checkpoint(model_file, hparams_file=hparams_file, stage=stage, tag_to_id=tag_to_id)
     model.stage = stage
-    return model
+    return model, model_file
 
 
 def save_model(trainer, out_dir, model_name='', timestamp=None):
@@ -138,3 +141,22 @@ def get_model_earlystopping_callback():
         mode='min'
     )
     return es_clb
+
+
+def get_models_for_evaluation(path):
+    if 'checkpoints' not in path:
+        path = path + '/checkpoints/'
+    model_files = list_files(path)
+    models = [f for f in model_files if f.endswith('final.ckpt')]
+
+    return models[0] if len(models) != 0 else None
+
+
+def list_files(in_dir):
+    files = []
+    for r, d, f in os.walk(in_dir):
+        for file in f:
+            files.append(os.path.join(r, file))
+    return files
+
+

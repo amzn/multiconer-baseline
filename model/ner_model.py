@@ -1,4 +1,5 @@
 from typing import List, Any
+from itertools import compress
 
 import pytorch_lightning.core.lightning as pl
 
@@ -49,6 +50,7 @@ class NERBaseAnnotator(pl.LightningModule):
         self.encoder = AutoModel.from_pretrained(encoder_model, return_dict=True)
 
         self.feedforward = nn.Linear(in_features=self.encoder.config.hidden_size, out_features=self.target_size)
+
         self.crf_layer = ConditionalRandomField(num_tags=self.target_size, constraints=allowed_transitions(constraint_type="BIO", labels=self.id_to_tag))
 
         self.lr = lr
@@ -68,12 +70,13 @@ class NERBaseAnnotator(pl.LightningModule):
 
     def collate_batch(self, batch):
         batch_ = list(zip(*batch))
-        tokens, masks, gold_spans, tags = batch_[0], batch_[1], batch_[2], batch_[3]
+        tokens, masks, token_masks, gold_spans, tags = batch_[0], batch_[1], batch_[2], batch_[3], batch_[4]
 
         max_len = max([len(token) for token in tokens])
         token_tensor = torch.empty(size=(len(tokens), max_len), dtype=torch.long).fill_(self.pad_token_id)
         tag_tensor = torch.empty(size=(len(tokens), max_len), dtype=torch.long).fill_(self.tag_to_id['O'])
         mask_tensor = torch.zeros(size=(len(tokens), max_len), dtype=torch.bool)
+        token_masks_tensor = torch.zeros(size=(len(tokens), max_len), dtype=torch.bool)
 
         for i in range(len(tokens)):
             tokens_ = tokens[i]
@@ -82,8 +85,9 @@ class NERBaseAnnotator(pl.LightningModule):
             token_tensor[i, :seq_len] = tokens_
             tag_tensor[i, :seq_len] = tags[i]
             mask_tensor[i, :seq_len] = masks[i]
+            token_masks_tensor[i, :seq_len] = token_masks[i]
 
-        return token_tensor, tag_tensor, mask_tensor, gold_spans
+        return token_tensor, tag_tensor, mask_tensor, token_masks_tensor, gold_spans
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr, weight_decay=0.01)
@@ -147,24 +151,25 @@ class NERBaseAnnotator(pl.LightningModule):
         self.log(suffix + 'loss', loss, on_step=on_step, on_epoch=on_epoch, prog_bar=True, logger=True)
 
     def perform_forward_step(self, batch, mode=''):
-        tokens, tags, token_mask, metadata = batch
+        tokens, tags, mask, token_mask, metadata = batch
         batch_size = tokens.size(0)
 
-        embedded_text_input = self.encoder(input_ids=tokens, attention_mask=token_mask)
+        embedded_text_input = self.encoder(input_ids=tokens, attention_mask=mask)
         embedded_text_input = embedded_text_input.last_hidden_state
         embedded_text_input = self.dropout(F.leaky_relu(embedded_text_input))
 
         # project the token representation for classification
         token_scores = self.feedforward(embedded_text_input)
+        token_scores = F.log_softmax(token_scores, dim=-1)
 
         # compute the log-likelihood loss and compute the best NER annotation sequence
-        output = self._compute_token_tags(token_scores=token_scores, tags=tags, token_mask=token_mask, metadata=metadata, batch_size=batch_size, mode=mode)
+        output = self._compute_token_tags(token_scores=token_scores, mask=mask, tags=tags, metadata=metadata, batch_size=batch_size, mode=mode)
         return output
 
-    def _compute_token_tags(self, token_scores, tags, token_mask, metadata, batch_size, mode=''):
+    def _compute_token_tags(self, token_scores, mask, tags, metadata, batch_size, mode=''):
         # compute the log-likelihood loss and compute the best NER annotation sequence
-        loss = -self.crf_layer(token_scores, tags, token_mask) / float(batch_size)
-        best_path = self.crf_layer.viterbi_tags(token_scores, token_mask)
+        loss = -self.crf_layer(token_scores, tags, mask) / float(batch_size)
+        best_path = self.crf_layer.viterbi_tags(token_scores, mask)
 
         pred_results, pred_tags = [], []
         for i in range(batch_size):
@@ -179,12 +184,11 @@ class NERBaseAnnotator(pl.LightningModule):
             output['token_tags'] = pred_tags
         return output
 
-    def predict_tags(self, batch, tokenizer=None):
-        tokens, tags, token_mask, metadata = batch
+    def predict_tags(self, batch, device='cuda:0'):
+        tokens, tags, mask, token_mask, metadata = batch
+        tokens, mask, token_mask, tags = tokens.to(device), mask.to(device), token_mask.to(device), tags.to(device)
+        batch = tokens, tags, mask, token_mask, metadata
+
         pred_tags = self.perform_forward_step(batch, mode='predict')['token_tags']
-        token_results, tag_results = [], []
-        for i in range(tokens.size(0)):
-            instance_token_results, instance_tag_results = get_tags(tokens[i], pred_tags[i], tokenizer=tokenizer)
-            token_results.append(instance_token_results)
-            tag_results.append(instance_tag_results)
-        return token_results, tag_results
+        tag_results = [compress(pred_tags_, mask_) for pred_tags_, mask_ in zip(pred_tags, token_mask)]
+        return tag_results

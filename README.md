@@ -59,6 +59,8 @@ python -m ner_baseline.predict_tags --test test.txt --out_dir . --gpus 1 --encod
 
 ```
 
+- It makes use of the modified _\_assign_ner_tags_ which computes an efficient mask for annotating the start of a word that is used by _predict_tags_ to output the resulting tags at word level and not at sub-word level. 
+
 ### Setting up the code environment
 
 ```

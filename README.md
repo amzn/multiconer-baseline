@@ -50,6 +50,15 @@ python -m ner_baseline.evaluate --test test.txt --out_dir . --gpus 1 --encoder_m
 
 ```
 
+
+###### Predicting the tags from a pretrained model
+
+```
+python -m ner_baseline.predict_tags --test test.txt --out_dir . --gpus 1 --encoder_model xlm-roberta-base \
+                                --model MODEL_FILE_PATH --prefix xlmr_ner_results --max_length 500
+
+```
+
 ### Setting up the code environment
 
 ```

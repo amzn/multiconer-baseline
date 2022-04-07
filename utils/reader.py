@@ -88,3 +88,49 @@ class CoNLLReader(Dataset):
         token_masks_rep.append(False)
         mask = [True] * len(tokens_sub_rep)
         return sentence_str, tokens_sub_rep, ner_tags_rep, token_masks_rep, mask
+
+
+class CoNLLUntokenizedReader(Dataset):
+    def __init__(self, max_instances=-1, max_length=50, target_vocab=None):
+        self._max_instances = max_instances
+        self._max_length = max_length
+
+        self.label_to_id = {} if target_vocab is None else target_vocab
+        self.instances = []
+
+    def __len__(self):
+        return len(self.instances)
+
+    def __getitem__(self, item):
+        return self.instances[item]
+
+    def read_data(self, data):
+        dataset_name = data if isinstance(data, str) else 'dataframe'
+        logger.info('Reading file {}'.format(dataset_name))
+        instance_idx = 0
+
+        for fields, metadata in get_ner_reader(data=data):
+            if self._max_instances != -1 and instance_idx > self._max_instances:
+                break
+            sentence_str, tags, gold_spans = self.parse_line_for_ner(fields=fields)
+
+            self.instances.append((sentence_str, tags, gold_spans))
+            instance_idx += 1
+        logger.info('Finished reading {:d} instances from file {}'.format(len(self.instances), dataset_name))
+
+    def parse_line_for_ner(self, fields):
+        tokens_, ner_tags = fields[0], fields[-1]
+        sentence, tags = self.parse_tokens_for_ner(tokens_, ner_tags)
+        gold_spans_ = extract_spans(tags)
+
+        return sentence, tags, gold_spans_
+
+    def parse_tokens_for_ner(self, tokens_, ner_tags):
+        sentence_str = ''
+        ner_tags_rep = []
+        for idx, token in enumerate(tokens_):
+            if self._max_length != -1 and len(ner_tags_rep) > self._max_length:
+                break
+            sentence_str += ' {}'.format(token)
+            ner_tags_rep.append(ner_tags[idx])
+        return sentence_str, ner_tags_rep

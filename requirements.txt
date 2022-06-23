@@ -70,7 +70,6 @@ mccabe==0.6.1
 mkl-fft==1.0.14
 mkl-random==1.2.2
 mkl-service==2.4.0
-mlflow==1.19.0
 mpi4py==3.0.3
 multipledispatch==0.6.0
 multiprocess==0.70.12.2

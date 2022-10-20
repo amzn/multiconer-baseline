@@ -57,13 +57,11 @@ importlib-metadata==4.6.1
 ipython-genutils==0.2.0
 jdcal==1.4.1
 Jinja2==3.0.1
-joblib==1.0.1
 json-rpc==1.12.2
 jsonnet==0.17.0
 jsonschema==3.2.0
 llvmlite==0.36.0
 locket==0.2.1
-Mako==1.1.4
 Markdown==3.3.4
 MarkupSafe==2.0.1
 mccabe==0.6.1

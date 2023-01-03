@@ -157,7 +157,7 @@ termcolor==1.1.0
 thinc==7.4.5
 tifffile==2020.10.1
 tokenizers==0.10.3
-torch==1.7.1
+torch
 torchmetrics==0.4.1
 torchvision==0.5.0
 tqdm==4.61.2

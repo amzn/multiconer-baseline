@@ -29,7 +29,7 @@ docker==5.0.0
 environment-kernels==1.1.1
 et-xmlfile==1.1.0
 fastai==1.0.61
-filelock==3.0.12
+filelock==3.20.1
 Flask-Cors==3.0.10
 fsspec==2021.7.0
 gitdb==4.0.7
